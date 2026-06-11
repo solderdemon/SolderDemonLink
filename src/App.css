@@ -121,6 +121,15 @@ button {
   cursor: default;
 }
 
+.dd-icon {
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
 .dd-value {
   flex: 1;
   overflow: hidden;
@@ -130,8 +139,12 @@ button {
 }
 
 .dd-caret {
-  font-size: 0.7rem;
   color: var(--muted);
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
 }
 
 .dd-menu {

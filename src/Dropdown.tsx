@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 export type DropdownOption = { value: string; label: string };
 
@@ -10,6 +11,7 @@ type Props = {
   ariaLabel?: string;
   placeholder?: string;
   emptyLabel?: string;
+  icon?: ReactNode;
 };
 
 export function Dropdown({
@@ -20,6 +22,7 @@ export function Dropdown({
   ariaLabel,
   placeholder = "--",
   emptyLabel = "No options",
+  icon,
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -58,9 +61,14 @@ export function Dropdown({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
+        {icon ? (
+          <span className="dd-icon" aria-hidden>
+            {icon}
+          </span>
+        ) : null}
         <span className="dd-value">{selected?.label ?? placeholder}</span>
         <span className="dd-caret" aria-hidden>
-          v
+          <ChevronDown size={14} strokeWidth={1.8} />
         </span>
       </button>
 

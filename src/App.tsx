@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Settings2 } from "lucide-react";
+import { Globe2, Settings2, SquareTerminal, Waypoints } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Dropdown } from "./Dropdown";
 import { queue } from "./translations";
@@ -150,6 +150,7 @@ function App() {
             ariaLabel={t("controls.port")}
             placeholder={t("controls.noPorts")}
             emptyLabel={t("controls.noPorts")}
+            icon={<SquareTerminal size={14} strokeWidth={1.8} />}
             value={portName}
             disabled={connected}
             onChange={setPortName}
@@ -158,6 +159,7 @@ function App() {
 
           <Dropdown
             ariaLabel={t("controls.baudRate")}
+            icon={<Waypoints size={14} strokeWidth={1.8} />}
             value={String(baud)}
             disabled={connected}
             onChange={(v) => setBaud(Number(v))}
@@ -257,6 +259,7 @@ function App() {
                   <Dropdown
                     ariaLabel={t("controls.language")}
                     emptyLabel={t("controls.noOptions")}
+                    icon={<Globe2 size={14} strokeWidth={1.8} />}
                     value={i18n.language.startsWith("uk") ? "uk" : "en"}
                     onChange={(language) => void i18n.changeLanguage(language)}
                     options={languageOptions}
