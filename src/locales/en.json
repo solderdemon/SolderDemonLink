@@ -1,0 +1,53 @@
+{
+  "tabs": {
+    "session": "Session",
+    "transfer": "Transfer",
+    "profiles": "Profiles",
+    "settings": "Settings"
+  },
+  "controls": {
+    "port": "Port",
+    "baudRate": "Baud rate",
+    "language": "Language",
+    "noPorts": "No ports",
+    "connect": "Connect",
+    "disconnect": "Disconnect",
+    "noOptions": "No options"
+  },
+  "terminal": {
+    "empty": "Not connected. Pick a port and press Connect.\n",
+    "inputConnected": "type and press Enter",
+    "inputDisconnected": "not connected"
+  },
+  "transfer": {
+    "dropzone": "Drop file for C-Kermit queue",
+    "queued": "Queued",
+    "pending": "Pending",
+    "flashStaging": "flash staging"
+  },
+  "profiles": {
+    "empty": "No serial ports found.",
+    "scan": "Scan ports"
+  },
+  "settings": {
+    "title": "Interface",
+    "description": "Choose the language used by the app interface.",
+    "languageLabel": "Application language"
+  },
+  "status": {
+    "disconnectedFrom": "disconnected from {{port}}",
+    "connectedTo": "connected to {{port}} @ {{baud}}",
+    "connectionLost": "connection lost: {{message}}",
+    "portScanFailed": "port scan failed: {{message}}",
+    "error": "error: {{message}}",
+    "writeFailed": "write failed: {{message}}",
+    "connected": "connected",
+    "disconnected": "disconnected",
+    "noPort": "no port",
+    "queuedCount": "{{count}} queued"
+  },
+  "languages": {
+    "en": "English",
+    "uk": "Ukrainian"
+  }
+}

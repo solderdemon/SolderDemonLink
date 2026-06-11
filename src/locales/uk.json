@@ -1,0 +1,53 @@
+{
+  "tabs": {
+    "session": "Сесія",
+    "transfer": "Передача",
+    "profiles": "Профілі",
+    "settings": "Налаштування"
+  },
+  "controls": {
+    "port": "Порт",
+    "baudRate": "Швидкість",
+    "language": "Мова",
+    "noPorts": "Немає портів",
+    "connect": "Підключити",
+    "disconnect": "Відключити",
+    "noOptions": "Немає варіантів"
+  },
+  "terminal": {
+    "empty": "Не підключено. Обери порт і натисни Підключити.\n",
+    "inputConnected": "введи команду та натисни Enter",
+    "inputDisconnected": "не підключено"
+  },
+  "transfer": {
+    "dropzone": "Перетягни файл у чергу C-Kermit",
+    "queued": "У черзі",
+    "pending": "Очікує",
+    "flashStaging": "підготовка до прошивки"
+  },
+  "profiles": {
+    "empty": "Серійні порти не знайдено.",
+    "scan": "Сканувати порти"
+  },
+  "settings": {
+    "title": "Інтерфейс",
+    "description": "Оберіть мову, якою користуватиметься інтерфейс застосунку.",
+    "languageLabel": "Мова застосунку"
+  },
+  "status": {
+    "disconnectedFrom": "відключено від {{port}}",
+    "connectedTo": "підключено до {{port}} @ {{baud}}",
+    "connectionLost": "з'єднання втрачено: {{message}}",
+    "portScanFailed": "не вдалося просканувати порти: {{message}}",
+    "error": "помилка: {{message}}",
+    "writeFailed": "не вдалося надіслати: {{message}}",
+    "connected": "підключено",
+    "disconnected": "відключено",
+    "noPort": "нема порту",
+    "queuedCount": "{{count}} у черзі"
+  },
+  "languages": {
+    "en": "English",
+    "uk": "Українська"
+  }
+}

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
+import { Settings2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { Dropdown } from "./Dropdown";
+import { queue } from "./translations";
 
-type View = "session" | "transfer" | "profiles";
+type View = "session" | "transfer" | "profiles" | "settings";
 
 type PortInfo = { name: string; kind: string };
 
@@ -11,18 +14,8 @@ const bauds = [9600, 19200, 38400, 57600, 115200];
 const DEFAULT_BAUD = 38400;
 const MAX_LOG = 100_000;
 
-const queue = [
-  { file: "monitor.bin", target: "session", state: "Queued" },
-  { file: "boot.hex", target: "flash staging", state: "Pending" },
-];
-
-const views: { id: View; label: string }[] = [
-  { id: "session", label: "Session" },
-  { id: "transfer", label: "Transfer" },
-  { id: "profiles", label: "Profiles" },
-];
-
 function App() {
+  const { t, i18n } = useTranslation();
   const [view, setView] = useState<View>("session");
   const [ports, setPorts] = useState<PortInfo[]>([]);
   const [portName, setPortName] = useState(() => localStorage.getItem("sd.port") ?? "");
@@ -34,6 +27,18 @@ function App() {
   const [log, setLog] = useState("");
   const [input, setInput] = useState("");
   const logRef = useRef<HTMLPreElement>(null);
+
+  const views: { id: View; label: string; iconOnly?: boolean }[] = [
+    { id: "session", label: t("tabs.session") },
+    { id: "transfer", label: t("tabs.transfer") },
+    { id: "profiles", label: t("tabs.profiles") },
+    { id: "settings", label: t("tabs.settings"), iconOnly: true },
+  ];
+
+  const languageOptions = [
+    { value: "en", label: t("languages.en") },
+    { value: "uk", label: t("languages.uk") },
+  ];
 
   useEffect(() => {
     if (portName) localStorage.setItem("sd.port", portName);
@@ -61,7 +66,7 @@ function App() {
         found.some((p) => p.name === current) ? current : (found[0]?.name ?? ""),
       );
     } catch (e) {
-      if (manual) appendStatus(`port scan failed: ${e}`);
+      if (manual) appendStatus(t("status.portScanFailed", { message: String(e) }));
     }
   }
 
@@ -73,9 +78,8 @@ function App() {
     });
     const unlistenClosed = listen<string>("serial:closed", (event) => {
       setConnected(false);
-      appendStatus(`connection lost: ${event.payload}`);
+      appendStatus(t("status.connectionLost", { message: event.payload }));
     });
-    // Windows pushes this when a device is plugged in/out (WM_DEVICECHANGE).
     const unlistenDevices = listen("serial:devices-changed", () => scanPorts());
 
     return () => {
@@ -83,9 +87,8 @@ function App() {
       unlistenClosed.then((fn) => fn());
       unlistenDevices.then((fn) => fn());
     };
-  }, []);
+  }, [t]);
 
-  // Fallback poll: covers non-Windows platforms and any missed device event.
   useEffect(() => {
     if (connected) return;
     const id = setInterval(scanPorts, 5000);
@@ -102,15 +105,15 @@ function App() {
       if (connected) {
         await invoke("close_port");
         setConnected(false);
-        appendStatus(`disconnected from ${portName}`);
+        appendStatus(t("status.disconnectedFrom", { port: portName }));
       } else {
         await invoke("open_port", { name: portName, baud });
         setConnected(true);
-        appendStatus(`connected to ${portName} @ ${baud}`);
+        appendStatus(t("status.connectedTo", { port: portName, baud }));
         setView("session");
       }
     } catch (e) {
-      appendStatus(`error: ${e}`);
+      appendStatus(t("status.error", { message: String(e) }));
     }
   }
 
@@ -120,7 +123,7 @@ function App() {
       await invoke("write_port", { data: input + "\r" });
       setInput("");
     } catch (e) {
-      appendStatus(`write failed: ${e}`);
+      appendStatus(t("status.writeFailed", { message: String(e) }));
     }
   }
 
@@ -131,19 +134,22 @@ function App() {
           {views.map((v) => (
             <button
               key={v.id}
-              className={`tab${view === v.id ? " is-active" : ""}`}
+              className={`tab${v.iconOnly ? " tab-icon-only" : ""}${view === v.id ? " is-active" : ""}`}
               type="button"
               onClick={() => setView(v.id)}
+              aria-label={v.label}
+              title={v.label}
             >
-              {v.label}
+              {v.id === "settings" ? <Settings2 className="tab-icon" aria-hidden="true" /> : v.label}
             </button>
           ))}
         </nav>
 
         <div className="topbar-controls">
           <Dropdown
-            ariaLabel="Port"
-            placeholder="no ports"
+            ariaLabel={t("controls.port")}
+            placeholder={t("controls.noPorts")}
+            emptyLabel={t("controls.noPorts")}
             value={portName}
             disabled={connected}
             onChange={setPortName}
@@ -151,7 +157,7 @@ function App() {
           />
 
           <Dropdown
-            ariaLabel="Baud rate"
+            ariaLabel={t("controls.baudRate")}
             value={String(baud)}
             disabled={connected}
             onChange={(v) => setBaud(Number(v))}
@@ -164,7 +170,7 @@ function App() {
             disabled={!connected && !portName}
             onClick={toggleConnect}
           >
-            {connected ? "Disconnect" : "Connect"}
+            {connected ? t("controls.disconnect") : t("controls.connect")}
           </button>
         </div>
       </header>
@@ -173,7 +179,7 @@ function App() {
         {view === "session" && (
           <div className="terminal">
             <pre className="terminal-log" ref={logRef}>
-              {log || "Not connected. Pick a port and press Connect.\n"}
+              {log || t("terminal.empty")}
             </pre>
             <div className="send-line">
               <span className="dim">&gt;</span>
@@ -182,7 +188,9 @@ function App() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendInput()}
-                placeholder={connected ? "type and press Enter" : "not connected"}
+                placeholder={
+                  connected ? t("terminal.inputConnected") : t("terminal.inputDisconnected")
+                }
                 disabled={!connected}
                 spellCheck={false}
               />
@@ -192,13 +200,19 @@ function App() {
 
         {view === "transfer" && (
           <div className="column">
-            <div className="dropzone">Drop file for C-Kermit queue</div>
+            <div className="dropzone">{t("transfer.dropzone")}</div>
             <ul className="list">
               {queue.map((item) => (
                 <li className="row" key={item.file}>
                   <span>{item.file}</span>
-                  <span className="dim">{item.target}</span>
-                  <span className="state">{item.state}</span>
+                  <span className="dim">
+                    {item.targetKey === "session"
+                      ? t("tabs.session")
+                      : t("transfer.flashStaging")}
+                  </span>
+                  <span className="state">
+                    {item.stateKey === "queued" ? t("transfer.queued") : t("transfer.pending")}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -207,7 +221,7 @@ function App() {
 
         {view === "profiles" && (
           <div className="column">
-            {ports.length === 0 && <p className="dim">No serial ports found.</p>}
+            {ports.length === 0 && <p className="dim">{t("profiles.empty")}</p>}
             <ul className="list">
               {ports.map((p) => (
                 <li key={p.name}>
@@ -224,19 +238,43 @@ function App() {
               ))}
             </ul>
             <button className="ghost" type="button" onClick={() => scanPorts(true)}>
-              Scan ports
+              {t("profiles.scan")}
             </button>
+          </div>
+        )}
+
+        {view === "settings" && (
+          <div className="column settings-panel">
+            <section className="settings-group">
+              <div className="settings-group-label">{t("settings.title")}</div>
+              <div className="settings-row">
+                <div className="settings-row-copy">
+                  <span className="settings-row-title">{t("settings.languageLabel")}</span>
+                  <span className="dim settings-row-text">{t("settings.description")}</span>
+                </div>
+
+                <div className="settings-row-control">
+                  <Dropdown
+                    ariaLabel={t("controls.language")}
+                    emptyLabel={t("controls.noOptions")}
+                    value={i18n.language.startsWith("uk") ? "uk" : "en"}
+                    onChange={(language) => void i18n.changeLanguage(language)}
+                    options={languageOptions}
+                  />
+                </div>
+              </div>
+            </section>
           </div>
         )}
       </main>
 
       <footer className="statusbar">
-        <span>{portName || "no port"}</span>
+        <span>{portName || t("status.noPort")}</span>
         <span>{baud} 8N1</span>
         <span className={connected ? "status-connected" : undefined}>
-          {connected ? "connected" : "disconnected"}
+          {connected ? t("status.connected") : t("status.disconnected")}
         </span>
-        <span className="statusbar-end">{queue.length} queued</span>
+        <span className="statusbar-end">{t("status.queuedCount", { count: queue.length })}</span>
       </footer>
     </div>
   );

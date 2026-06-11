@@ -40,8 +40,6 @@ button {
   grid-template-rows: 44px 1fr 28px;
 }
 
-/* Topbar */
-
 .topbar {
   display: flex;
   justify-content: space-between;
@@ -63,6 +61,14 @@ button {
   color: var(--muted);
 }
 
+.tab-icon-only {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}
+
 .tab:hover {
   color: var(--text);
 }
@@ -70,6 +76,11 @@ button {
 .tab.is-active {
   color: var(--text);
   background: var(--surface);
+}
+
+.tab-icon {
+  width: 15px;
+  height: 15px;
 }
 
 .topbar-controls {
@@ -195,8 +206,6 @@ button {
   color: var(--accent);
 }
 
-/* Content */
-
 .content {
   min-height: 0;
   overflow-y: auto;
@@ -246,6 +255,50 @@ button {
   padding: 24px 16px;
   display: grid;
   gap: 12px;
+}
+
+.settings-panel {
+  align-content: start;
+}
+
+.settings-group {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-group-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.settings-row-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-row-title {
+  color: var(--text);
+}
+
+.settings-row-text {
+  font-size: 0.78rem;
+}
+
+.settings-row-control {
+  justify-self: end;
 }
 
 .dropzone {
@@ -310,8 +363,6 @@ button {
   color: var(--text);
 }
 
-/* Statusbar */
-
 .statusbar {
   display: flex;
   align-items: center;
@@ -324,4 +375,30 @@ button {
 
 .statusbar-end {
   margin-left: auto;
+}
+
+@media (max-width: 720px) {
+  .app {
+    grid-template-rows: auto 1fr 28px;
+  }
+
+  .topbar {
+    padding: 12px 16px;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .topbar-controls {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .settings-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .settings-row-control {
+    justify-self: start;
+  }
 }

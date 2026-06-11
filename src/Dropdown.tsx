@@ -9,6 +9,7 @@ type Props = {
   disabled?: boolean;
   ariaLabel?: string;
   placeholder?: string;
+  emptyLabel?: string;
 };
 
 export function Dropdown({
@@ -17,7 +18,8 @@ export function Dropdown({
   onChange,
   disabled,
   ariaLabel,
-  placeholder = "—",
+  placeholder = "--",
+  emptyLabel = "No options",
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -58,13 +60,13 @@ export function Dropdown({
       >
         <span className="dd-value">{selected?.label ?? placeholder}</span>
         <span className="dd-caret" aria-hidden>
-          ▾
+          v
         </span>
       </button>
 
       {open && (
         <ul className="dd-menu" role="listbox">
-          {options.length === 0 && <li className="dd-empty">no options</li>}
+          {options.length === 0 && <li className="dd-empty">{emptyLabel}</li>}
           {options.map((o) => (
             <li key={o.value}>
               <button
