@@ -43,21 +43,18 @@ button {
 /* Topbar */
 
 .topbar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
+  gap: 16px;
   padding: 0 16px;
   border-bottom: 1px solid var(--line);
-}
-
-.brand {
-  font-size: 0.8rem;
-  color: var(--muted);
 }
 
 .tabs {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
 }
 
 .tab {
@@ -75,8 +72,99 @@ button {
   background: var(--surface);
 }
 
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dd {
+  position: relative;
+}
+
+.dd-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 96px;
+  max-width: 200px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.dd-trigger:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.dd-trigger.is-open {
+  border-color: rgba(255, 122, 0, 0.4);
+}
+
+.dd-trigger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dd-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.dd-caret {
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.dd-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.dd-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 5px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.dd-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dd-option.is-active {
+  color: var(--accent);
+}
+
+.dd-empty {
+  padding: 7px 8px;
+  color: var(--muted);
+}
+
 .connect {
-  justify-self: end;
   padding: 6px 16px;
   border-radius: 6px;
   color: var(--accent);
@@ -85,6 +173,26 @@ button {
 
 .connect:hover {
   background: rgba(255, 122, 0, 0.1);
+}
+
+.connect:disabled {
+  color: var(--muted);
+  border-color: var(--line);
+  cursor: default;
+}
+
+.connect.is-connected {
+  color: var(--text);
+  border-color: var(--line);
+}
+
+.row-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.status-connected {
+  color: var(--accent);
 }
 
 /* Content */
@@ -96,19 +204,46 @@ button {
 
 .terminal {
   height: 100%;
-  padding: 16px;
-  line-height: 1.7;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
-.terminal p {
+.terminal-log {
+  flex: 1;
+  min-height: 0;
   margin: 0;
+  padding: 16px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+  font: inherit;
+}
+
+.send-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.send-input {
+  flex: 1;
+  font: inherit;
+  color: var(--text);
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.send-input::placeholder {
+  color: var(--muted);
 }
 
 .column {
-  max-width: 520px;
-  margin: 0 auto;
-  padding: 32px 16px;
+  width: 100%;
+  padding: 24px 16px;
   display: grid;
   gap: 12px;
 }
