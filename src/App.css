@@ -228,18 +228,61 @@ button {
   height: 100%;
   display: flex;
   flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.terminal.is-hidden {
+  display: none;
+}
+
+.terminal-toolbar {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 16px 0;
+  background: var(--bg);
+}
+
+.terminal-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.terminal-action:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 .terminal-log {
   flex: 1;
   min-height: 0;
   margin: 0;
-  padding: 16px;
-  overflow-y: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
-  line-height: 1.6;
-  font: inherit;
+  padding: 12px;
+  overflow: hidden;
+}
+
+/* Let xterm's own canvas own the scrolling and metrics. */
+.terminal-log .xterm,
+.terminal-log .xterm-viewport {
+  height: 100% !important;
+}
+
+.terminal-log .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-log .xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
 }
 
 .send-line {

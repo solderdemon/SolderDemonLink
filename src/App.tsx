@@ -3,8 +3,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Globe2, Settings2, SquareTerminal, Upload, Waypoints, X } from "lucide-react";
+import { Eraser, Globe2, Settings2, SquareTerminal, Upload, Waypoints, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
 import { Dropdown } from "./Dropdown";
 
 type View = "session" | "transfer" | "settings";
@@ -13,7 +16,6 @@ type PortInfo = { name: string; kind: string };
 
 const bauds = [9600, 19200, 38400, 57600, 115200];
 const DEFAULT_BAUD = 38400;
-const MAX_LOG = 100_000;
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -25,9 +27,10 @@ function App() {
     return bauds.includes(saved) ? saved : DEFAULT_BAUD;
   });
   const [connected, setConnected] = useState(false);
-  const [log, setLog] = useState("");
   const [input, setInput] = useState("");
-  const logRef = useRef<HTMLPreElement>(null);
+  const termHostRef = useRef<HTMLDivElement>(null);
+  const termRef = useRef<Terminal | null>(null);
+  const fitRef = useRef<FitAddon | null>(null);
 
   const [filePath, setFilePath] = useState<string | null>(null);
   const [transferring, setTransferring] = useState(false);
@@ -65,12 +68,11 @@ function App() {
     localStorage.setItem("sd.baud", String(baud));
   }, [baud]);
 
-  function append(text: string) {
-    setLog((prev) => (prev + text).slice(-MAX_LOG));
-  }
-
   function appendStatus(text: string) {
-    append(`\n[${text}]\n`);
+    // A dim, bracketed status line written into the terminal alongside the
+    // device's own output. Force a fresh line in case the device left the
+    // cursor mid-row (e.g. a progress line ending in a bare CR).
+    termRef.current?.write(`\r\n\x1b[2m[${text}]\x1b[0m\r\n`);
   }
 
   async function scanPorts(manual = false) {
@@ -87,11 +89,79 @@ function App() {
     }
   }
 
+  // Spin up the xterm.js emulator once and keep it for the app's lifetime so
+  // the scrollback survives tab switches. It interprets CR/LF, cursor moves and
+  // ANSI colour the way a real terminal does, so progress lines that end in a
+  // bare CR overwrite in place instead of piling up row by row.
+  useEffect(() => {
+    if (termRef.current) return;
+    let term: Terminal | null = null;
+    let disposed = false;
+
+    // Wait for the web font before measuring glyph cells. xterm latches the
+    // character width at open() time; if it samples a fallback font the real
+    // IBM Plex Mono renders at a different advance and box-drawing/ASCII art
+    // drifts out of alignment. Build the terminal only once the font is ready.
+    document.fonts.load('13px "IBM Plex Mono"').then(() => {
+      if (disposed || !termHostRef.current || termRef.current) return;
+
+      term = new Terminal({
+        // Treat a bare LF as CR+LF (like a standard serial terminal's "implicit
+        // CR on LF"). rosco ends some lines — notably the boot banner — with LF
+        // only; without this each line starts where the previous ended and the
+        // ASCII art walks diagonally off to the right. A bare CR still returns
+        // to column 0 on its own, so in-place progress updates keep working.
+        convertEol: true,
+        cursorBlink: true,
+        scrollback: 5000,
+        fontFamily: '"IBM Plex Mono", monospace',
+        fontSize: 13,
+        theme: {
+          background: "#0e0f10",
+          foreground: "#e8e6e1",
+          cursor: "#ff7a00",
+          selectionBackground: "rgba(255, 122, 0, 0.3)",
+        },
+      });
+      const fit = new FitAddon();
+      term.loadAddon(fit);
+      term.open(termHostRef.current);
+      fit.fit();
+
+      // Echo keystrokes typed directly into the terminal out to the port.
+      term.onData((d) => {
+        invoke("write_port", { data: d }).catch(() => {});
+      });
+
+      termRef.current = term;
+      fitRef.current = fit;
+    });
+
+    return () => {
+      disposed = true;
+      term?.dispose();
+      termRef.current = null;
+      fitRef.current = null;
+    };
+  }, []);
+
+  // Refit on window resize and whenever the session tab becomes visible again
+  // (a hidden terminal has zero dimensions, so its layout must be recomputed).
+  useEffect(() => {
+    const refit = () => fitRef.current?.fit();
+    window.addEventListener("resize", refit);
+    return () => window.removeEventListener("resize", refit);
+  }, []);
+
+  useEffect(() => {
+    if (view === "session") requestAnimationFrame(() => fitRef.current?.fit());
+  }, [view]);
+
   useEffect(() => {
     scanPorts();
 
     const unlistenData = listen<string>("serial:data", (event) => {
-      append(event.payload);
+      termRef.current?.write(event.payload);
     });
     const unlistenClosed = listen<string>("serial:closed", (event) => {
       setConnected(false);
@@ -147,11 +217,6 @@ function App() {
     const id = setInterval(scanPorts, 5000);
     return () => clearInterval(id);
   }, [connected]);
-
-  useEffect(() => {
-    const el = logRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [log, view]);
 
   async function toggleConnect() {
     try {
@@ -211,6 +276,10 @@ function App() {
     }
   }
 
+  function clearTerminal() {
+    termRef.current?.clear();
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -262,12 +331,21 @@ function App() {
       </header>
 
       <main className="content">
-        {view === "session" && (
-          <div className="terminal">
-            <pre className="terminal-log" ref={logRef}>
-              {log || t("terminal.empty")}
-            </pre>
-            <div className="send-line">
+        <div className={`terminal${view === "session" ? "" : " is-hidden"}`}>
+          <div className="terminal-toolbar">
+            <button
+              className="terminal-action"
+              type="button"
+              onClick={clearTerminal}
+              aria-label={t("terminal.clear")}
+              title={t("terminal.clear")}
+            >
+              <Eraser size={14} strokeWidth={1.8} aria-hidden="true" />
+              <span>{t("terminal.clear")}</span>
+            </button>
+          </div>
+          <div className="terminal-log" ref={termHostRef} />
+          <div className="send-line">
               <span className="dim">&gt;</span>
               <input
                 className="send-input"
@@ -281,8 +359,7 @@ function App() {
                 spellCheck={false}
               />
             </div>
-          </div>
-        )}
+        </div>
 
         {view === "transfer" && (
           <div className="column">
