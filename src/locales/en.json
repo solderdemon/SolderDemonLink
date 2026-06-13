@@ -2,7 +2,6 @@
   "tabs": {
     "session": "Session",
     "transfer": "Transfer",
-    "profiles": "Profiles",
     "settings": "Settings"
   },
   "controls": {
@@ -32,10 +31,6 @@
     "done": "Sent {{name}}",
     "failed": "Transfer failed: {{message}}",
     "progress": "{{sent}} / {{total}} bytes"
-  },
-  "profiles": {
-    "empty": "No serial ports found.",
-    "scan": "Scan ports"
   },
   "settings": {
     "title": "Interface",

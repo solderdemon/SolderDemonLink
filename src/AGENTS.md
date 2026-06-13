@@ -21,7 +21,7 @@ Read this only for UI, interaction, i18n, and frontend-to-Tauri bridge work.
 This is the primary file for frontend behavior.
 It owns:
 
-- tab navigation: `session | transfer | profiles | settings`
+- tab navigation: `session | transfer | settings`
 - port and baud selection
 - connect/disconnect actions
 - terminal log rendering

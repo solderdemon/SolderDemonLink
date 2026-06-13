@@ -2,7 +2,6 @@
   "tabs": {
     "session": "Сесія",
     "transfer": "Передача",
-    "profiles": "Профілі",
     "settings": "Налаштування"
   },
   "controls": {
@@ -32,10 +31,6 @@
     "done": "Надіслано {{name}}",
     "failed": "Помилка передачі: {{message}}",
     "progress": "{{sent}} / {{total}} байт"
-  },
-  "profiles": {
-    "empty": "Серійні порти не знайдено.",
-    "scan": "Сканувати порти"
   },
   "settings": {
     "title": "Інтерфейс",
