@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import { Globe2, Settings2, SquareTerminal, Waypoints } from "lucide-react";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { open } from "@tauri-apps/plugin-dialog";
+import { Globe2, Settings2, SquareTerminal, Upload, Waypoints, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Dropdown } from "./Dropdown";
-import { queue } from "./translations";
 
 type View = "session" | "transfer" | "profiles" | "settings";
 
@@ -27,6 +28,23 @@ function App() {
   const [log, setLog] = useState("");
   const [input, setInput] = useState("");
   const logRef = useRef<HTMLPreElement>(null);
+
+  const [filePath, setFilePath] = useState<string | null>(null);
+  const [transferring, setTransferring] = useState(false);
+  const [progress, setProgress] = useState<{ sent: number; total: number } | null>(null);
+  const [transferMsg, setTransferMsg] = useState("");
+
+  const fileName = filePath ? (filePath.split(/[\\/]/).pop() ?? filePath) : null;
+
+  function acceptFile(path: string) {
+    if (!path.toLowerCase().endsWith(".bin")) {
+      setFilePath(null);
+      setTransferMsg(t("transfer.onlyBin"));
+      return;
+    }
+    setFilePath(path);
+    setTransferMsg("");
+  }
 
   const views: { id: View; label: string; iconOnly?: boolean }[] = [
     { id: "session", label: t("tabs.session") },
@@ -82,12 +100,48 @@ function App() {
     });
     const unlistenDevices = listen("serial:devices-changed", () => scanPorts());
 
+    const unlistenKStart = listen<{ name: string; total: number }>("kermit:start", (e) => {
+      setTransferring(true);
+      setProgress({ sent: 0, total: e.payload.total });
+      setTransferMsg(t("transfer.sending", { name: e.payload.name }));
+    });
+    const unlistenKProgress = listen<{ sent: number; total: number }>("kermit:progress", (e) => {
+      setProgress({ sent: e.payload.sent, total: e.payload.total });
+    });
+    const unlistenKDone = listen<string>("kermit:done", (e) => {
+      setTransferring(false);
+      setProgress(null);
+      setTransferMsg(t("transfer.done", { name: e.payload }));
+    });
+    const unlistenKError = listen<string>("kermit:error", (e) => {
+      setTransferring(false);
+      setProgress(null);
+      setTransferMsg(t("transfer.failed", { message: e.payload }));
+    });
+
     return () => {
       unlistenData.then((fn) => fn());
       unlistenClosed.then((fn) => fn());
       unlistenDevices.then((fn) => fn());
+      unlistenKStart.then((fn) => fn());
+      unlistenKProgress.then((fn) => fn());
+      unlistenKDone.then((fn) => fn());
+      unlistenKError.then((fn) => fn());
     };
   }, [t]);
+
+  useEffect(() => {
+    const unlisten = getCurrentWebview().onDragDropEvent((event) => {
+      if (event.payload.type === "drop" && event.payload.paths.length > 0) {
+        // One file at a time: take the first dropped path.
+        acceptFile(event.payload.paths[0]);
+        setView("transfer");
+      }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
 
   useEffect(() => {
     if (connected) return;
@@ -124,6 +178,37 @@ function App() {
       setInput("");
     } catch (e) {
       appendStatus(t("status.writeFailed", { message: String(e) }));
+    }
+  }
+
+  async function chooseFile() {
+    const selected = await open({
+      multiple: false,
+      directory: false,
+      filters: [{ name: "Firmware", extensions: ["bin"] }],
+    });
+    if (typeof selected === "string") {
+      acceptFile(selected);
+    }
+  }
+
+  async function startSend() {
+    if (!filePath) return;
+    setTransferMsg("");
+    setTransferring(true);
+    try {
+      await invoke("kermit_send", { path: filePath });
+    } catch (e) {
+      setTransferring(false);
+      setTransferMsg(t("transfer.failed", { message: String(e) }));
+    }
+  }
+
+  async function cancelSend() {
+    try {
+      await invoke("kermit_cancel");
+    } catch {
+      // ignore
     }
   }
 
@@ -202,22 +287,67 @@ function App() {
 
         {view === "transfer" && (
           <div className="column">
-            <div className="dropzone">{t("transfer.dropzone")}</div>
-            <ul className="list">
-              {queue.map((item) => (
-                <li className="row" key={item.file}>
-                  <span>{item.file}</span>
-                  <span className="dim">
-                    {item.targetKey === "session"
-                      ? t("tabs.session")
-                      : t("transfer.flashStaging")}
-                  </span>
-                  <span className="state">
-                    {item.stateKey === "queued" ? t("transfer.queued") : t("transfer.pending")}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <div className="dropzone">
+              <Upload size={20} strokeWidth={1.6} className="dim" />
+              <p className="dim">
+                {t("transfer.dropzone")}{" "}
+                <button className="link" type="button" onClick={chooseFile}>
+                  {t("transfer.browse")}
+                </button>
+              </p>
+            </div>
+
+            <div className="transfer-file">
+              <span className={fileName ? undefined : "dim"}>
+                {fileName ?? t("transfer.noFile")}
+              </span>
+              {fileName && !transferring && (
+                <button
+                  className="icon-button"
+                  type="button"
+                  onClick={() => setFilePath(null)}
+                  aria-label={t("transfer.cancel")}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {progress && (
+              <div className="progress">
+                <div className="progress-bar">
+                  <div
+                    className="progress-fill"
+                    style={{
+                      width: `${progress.total ? (progress.sent / progress.total) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+                <span className="dim progress-text">
+                  {t("transfer.progress", { sent: progress.sent, total: progress.total })}
+                </span>
+              </div>
+            )}
+
+            {transferMsg && <p className="dim">{transferMsg}</p>}
+            {!connected && <p className="dim">{t("transfer.connectFirst")}</p>}
+
+            <div className="transfer-actions">
+              {transferring ? (
+                <button className="ghost" type="button" onClick={cancelSend}>
+                  {t("transfer.cancel")}
+                </button>
+              ) : (
+                <button
+                  className="connect"
+                  type="button"
+                  disabled={!connected || !filePath}
+                  onClick={startSend}
+                >
+                  {t("transfer.send")}
+                </button>
+              )}
+            </div>
           </div>
         )}
 
@@ -277,7 +407,7 @@ function App() {
         <span className={connected ? "status-connected" : undefined}>
           {connected ? t("status.connected") : t("status.disconnected")}
         </span>
-        <span className="statusbar-end">{t("status.queuedCount", { count: queue.length })}</span>
+        <span className="statusbar-end">{transferMsg}</span>
       </footer>
     </div>
   );

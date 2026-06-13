@@ -20,10 +20,18 @@
     "inputDisconnected": "не підключено"
   },
   "transfer": {
-    "dropzone": "Перетягни файл у чергу C-Kermit",
-    "queued": "У черзі",
-    "pending": "Очікує",
-    "flashStaging": "підготовка до прошивки"
+    "dropzone": "Перетягни файл сюди або",
+    "browse": "обери файл",
+    "noFile": "Файл не вибрано",
+    "send": "Надіслати через Kermit",
+    "cancel": "Скасувати",
+    "connectFirst": "Підключись до порту, щоб надсилати файли.",
+    "onlyBin": "Підтримуються лише файли .bin.",
+    "idle": "Готово",
+    "sending": "Надсилання {{name}}…",
+    "done": "Надіслано {{name}}",
+    "failed": "Помилка передачі: {{message}}",
+    "progress": "{{sent}} / {{total}} байт"
   },
   "profiles": {
     "empty": "Серійні порти не знайдено.",

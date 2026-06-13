@@ -1,3 +1,5 @@
+mod kermit;
+
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -8,8 +10,12 @@ use tauri::{AppHandle, Emitter, State};
 
 #[derive(Default)]
 struct SerialState {
-    port: Mutex<Option<Box<dyn serialport::SerialPort>>>,
+    port: Arc<Mutex<Option<Box<dyn serialport::SerialPort>>>>,
     stop: Mutex<Option<Arc<AtomicBool>>>,
+    /// Set while a Kermit transfer owns the port, so the console reader parks.
+    transferring: Arc<AtomicBool>,
+    /// Requests an in-flight transfer to abort.
+    cancel: Arc<AtomicBool>,
 }
 
 #[derive(Serialize)]
@@ -51,13 +57,23 @@ fn open_port(
 ) -> Result<(), String> {
     stop_reader(&state);
 
+    // 8-N-1 with no flow control: an 8-bit clean, transparent path. This mirrors
+    // the ckermit `set parity none` / `set flow-control none` settings the
+    // rosco_m68k kermit receiver needs. Without it the high data bit or the
+    // XON/XOFF bytes can be stripped, corrupting the binary mid-transfer (the
+    // device then jumps into garbage and faults with an illegal instruction).
     let port = serialport::new(&name, baud)
+        .data_bits(serialport::DataBits::Eight)
+        .parity(serialport::Parity::None)
+        .stop_bits(serialport::StopBits::One)
+        .flow_control(serialport::FlowControl::None)
         .timeout(Duration::from_millis(50))
         .open()
         .map_err(|e| e.to_string())?;
 
     let mut reader = port.try_clone().map_err(|e| e.to_string())?;
     let stop = Arc::new(AtomicBool::new(false));
+    let transferring = state.transferring.clone();
 
     *state.port.lock().unwrap() = Some(port);
     *state.stop.lock().unwrap() = Some(stop.clone());
@@ -67,6 +83,11 @@ fn open_port(
         loop {
             if stop.load(Ordering::Relaxed) {
                 break;
+            }
+            // A Kermit transfer takes exclusive ownership of the port; stay idle.
+            if transferring.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(20));
+                continue;
             }
             match reader.read(&mut buf) {
                 Ok(0) => {}
@@ -97,6 +118,52 @@ fn write_port(state: State<SerialState>, data: String) -> Result<(), String> {
     let mut guard = state.port.lock().unwrap();
     let port = guard.as_mut().ok_or("Port is not open")?;
     port.write_all(data.as_bytes()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn kermit_send(app: AppHandle, state: State<SerialState>, path: String) -> Result<(), String> {
+    if state.port.lock().unwrap().is_none() {
+        return Err("Port is not open".into());
+    }
+    if state.transferring.swap(true, Ordering::SeqCst) {
+        return Err("A transfer is already in progress".into());
+    }
+    state.cancel.store(false, Ordering::SeqCst);
+
+    let port = state.port.clone();
+    let transferring = state.transferring.clone();
+    let cancel = state.cancel.clone();
+
+    std::thread::spawn(move || {
+        // Let the console reader observe `transferring` and park (its read
+        // timeout is 50ms) before we take the port lock and drain stale input.
+        std::thread::sleep(Duration::from_millis(150));
+
+        let result = {
+            let mut guard = port.lock().unwrap();
+            match guard.as_mut() {
+                Some(p) => kermit::send_file(&mut **p, &path, &app, &cancel),
+                None => Err("Port closed".into()),
+            }
+        };
+
+        transferring.store(false, Ordering::SeqCst);
+        match result {
+            Ok(name) => {
+                let _ = app.emit("kermit:done", name);
+            }
+            Err(message) => {
+                let _ = app.emit("kermit:error", message);
+            }
+        }
+    });
+
+    Ok(())
+}
+
+#[tauri::command]
+fn kermit_cancel(state: State<SerialState>) {
+    state.cancel.store(true, Ordering::SeqCst);
 }
 
 // On Windows, listen for OS device-change notifications (WM_DEVICECHANGE) instead
@@ -188,6 +255,7 @@ fn watch_devices(app: AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(SerialState::default())
         .setup(|_app| {
             #[cfg(windows)]
@@ -195,7 +263,12 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            list_ports, open_port, close_port, write_port
+            list_ports,
+            open_port,
+            close_port,
+            write_port,
+            kermit_send,
+            kermit_cancel
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
