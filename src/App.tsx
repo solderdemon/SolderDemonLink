@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
-import { Eraser, Globe2, Settings2, SquareTerminal, Upload, Waypoints, X } from "lucide-react";
+import { Globe2, Settings2, SquareTerminal, Upload, Waypoints, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -276,10 +276,6 @@ function App() {
     }
   }
 
-  function clearTerminal() {
-    termRef.current?.clear();
-  }
-
   return (
     <div className="app">
       <header className="topbar">
@@ -332,33 +328,21 @@ function App() {
 
       <main className="content">
         <div className={`terminal${view === "session" ? "" : " is-hidden"}`}>
-          <div className="terminal-toolbar">
-            <button
-              className="terminal-action"
-              type="button"
-              onClick={clearTerminal}
-              aria-label={t("terminal.clear")}
-              title={t("terminal.clear")}
-            >
-              <Eraser size={14} strokeWidth={1.8} aria-hidden="true" />
-              <span>{t("terminal.clear")}</span>
-            </button>
-          </div>
           <div className="terminal-log" ref={termHostRef} />
           <div className="send-line">
-              <span className="dim">&gt;</span>
-              <input
-                className="send-input"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendInput()}
-                placeholder={
-                  connected ? t("terminal.inputConnected") : t("terminal.inputDisconnected")
-                }
-                disabled={!connected}
-                spellCheck={false}
-              />
-            </div>
+            <span className="dim">&gt;</span>
+            <input
+              className="send-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendInput()}
+              placeholder={
+                connected ? t("terminal.inputConnected") : t("terminal.inputDisconnected")
+              }
+              disabled={!connected}
+              spellCheck={false}
+            />
+          </div>
         </div>
 
         {view === "transfer" && (

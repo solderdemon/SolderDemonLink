@@ -15,7 +15,6 @@
   },
   "terminal": {
     "empty": "Not connected. Pick a port and press Connect.\n",
-    "clear": "Clear",
     "inputConnected": "type and press Enter",
     "inputDisconnected": "not connected"
   },
