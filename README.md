@@ -8,6 +8,12 @@ classic Kermit protocol.
 Built with **Tauri v2**, **React 19** and **TypeScript**, with a **Rust**
 backend owning the serial runtime and transfer protocol.
 
+## Screenshots
+
+![Main window](docs/screenshots/main.png)
+
+![Kermit firmware transfer](docs/screenshots/kermit.png)
+
 ## Features
 
 - **Serial terminal** — a full [xterm.js](https://xtermjs.org/) emulator that
