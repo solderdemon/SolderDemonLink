@@ -1,0 +1,118 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+:root {
+  color-scheme: dark;
+  font-family: "IBM Plex Mono", monospace;
+  --bg: #0e0f10;
+  --surface: #141618;
+  --line: rgba(255, 255, 255, 0.07);
+  --text: #e8e6e1;
+  --muted: rgba(232, 230, 225, 0.5);
+  --accent: #ff7a00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.85rem;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+#root {
+  height: 100vh;
+}
+
+.app {
+  height: 100%;
+  display: grid;
+  grid-template-rows: 44px 1fr;
+}
+
+.content {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.column {
+  width: 100%;
+  padding: 24px 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.dim {
+  color: var(--muted);
+}
+
+.connect {
+  padding: 6px 16px;
+  border-radius: 6px;
+  color: var(--accent);
+  border: 1px solid rgba(255, 122, 0, 0.4);
+}
+
+.connect:hover {
+  background: rgba(255, 122, 0, 0.1);
+}
+
+.connect:disabled {
+  color: var(--muted);
+  border-color: var(--line);
+  cursor: default;
+}
+
+.connect.is-connected {
+  color: var(--text);
+  border-color: var(--line);
+}
+
+.ghost {
+  justify-self: start;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+.ghost:hover {
+  color: var(--text);
+}
+
+.link {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.icon-button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 720px) {
+  .app {
+    grid-template-rows: auto 1fr;
+  }
+}

@@ -1,0 +1,54 @@
+.terminal {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.terminal.is-hidden {
+  display: none;
+}
+
+.terminal-log {
+  flex: 1;
+  min-height: 0;
+  margin: 0;
+  padding: 12px;
+  overflow: hidden;
+}
+
+.terminal-log .xterm,
+.terminal-log .xterm-viewport {
+  height: 100% !important;
+}
+
+.terminal-log .xterm-viewport::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-log .xterm-viewport::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 4px;
+}
+
+.send-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.send-input {
+  flex: 1;
+  font: inherit;
+  color: var(--text);
+  background: none;
+  border: none;
+  outline: none;
+}
+
+.send-input::placeholder {
+  color: var(--muted);
+}

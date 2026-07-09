@@ -1,0 +1,54 @@
+.settings-panel {
+  align-content: start;
+}
+
+.settings-group {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-group-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.settings-row-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-row-title {
+  color: var(--text);
+}
+
+.settings-row-text {
+  font-size: 0.78rem;
+}
+
+.settings-row-control {
+  justify-self: end;
+}
+
+@media (max-width: 720px) {
+  .settings-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .settings-row-control {
+    justify-self: start;
+  }
+}

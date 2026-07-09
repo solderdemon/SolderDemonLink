@@ -1,0 +1,96 @@
+.dd {
+  position: relative;
+}
+
+.dd-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 96px;
+  max-width: 200px;
+  padding: 5px 8px 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.dd-trigger:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.dd-trigger.is-open {
+  border-color: rgba(255, 122, 0, 0.4);
+}
+
+.dd-trigger:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.dd-icon {
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  flex: 0 0 auto;
+}
+
+.dd-value {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.dd-caret {
+  color: var(--muted);
+  width: 14px;
+  height: 14px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.dd-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.dd-option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border-radius: 5px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.dd-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.dd-option.is-active {
+  color: var(--accent);
+}
+
+.dd-empty {
+  padding: 7px 8px;
+  color: var(--muted);
+}
