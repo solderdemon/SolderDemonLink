@@ -215,10 +215,6 @@ button {
   cursor: default;
 }
 
-.status-connected {
-  color: var(--accent);
-}
-
 .content {
   min-height: 0;
   overflow-y: auto;
@@ -458,19 +454,6 @@ button {
   color: var(--text);
 }
 
-.statusbar {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 16px;
-  border-top: 1px solid var(--line);
-  font-size: 0.72rem;
-  color: var(--muted);
-}
-
-.statusbar-end {
-  margin-left: auto;
-}
 
 @media (max-width: 720px) {
   .app {

@@ -14,15 +14,13 @@
     "noOptions": "No options"
   },
   "terminal": {
-    "empty": "Not connected. Pick a port and press Connect.\n",
-    "inputConnected": "type and press Enter",
-    "inputDisconnected": "not connected"
+    "inputConnected": "type and press Enter"
   },
   "transfer": {
     "dropzone": "Drop a file here, or",
     "browse": "choose a file",
     "noFile": "No file selected",
-    "send": "Send via Kermit",
+    "send": "Send",
     "cancel": "Cancel",
     "connectFirst": "Connect to a port to send files.",
     "onlyBin": "Only .bin files are supported.",

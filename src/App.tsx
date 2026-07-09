@@ -329,20 +329,19 @@ function App() {
       <main className="content">
         <div className={`terminal${view === "session" ? "" : " is-hidden"}`}>
           <div className="terminal-log" ref={termHostRef} />
-          <div className="send-line">
-            <span className="dim">&gt;</span>
-            <input
-              className="send-input"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendInput()}
-              placeholder={
-                connected ? t("terminal.inputConnected") : t("terminal.inputDisconnected")
-              }
-              disabled={!connected}
-              spellCheck={false}
-            />
-          </div>
+          {connected && (
+            <div className="send-line">
+              <span className="dim">&gt;</span>
+              <input
+                className="send-input"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendInput()}
+                placeholder={t("terminal.inputConnected")}
+                spellCheck={false}
+              />
+            </div>
+          )}
         </div>
 
         {view === "transfer" && (
@@ -437,14 +436,6 @@ function App() {
         )}
       </main>
 
-      <footer className="statusbar">
-        <span>{portName || t("status.noPort")}</span>
-        <span>{baud} 8N1</span>
-        <span className={connected ? "status-connected" : undefined}>
-          {connected ? t("status.connected") : t("status.disconnected")}
-        </span>
-        <span className="statusbar-end">{transferMsg}</span>
-      </footer>
     </div>
   );
 }
