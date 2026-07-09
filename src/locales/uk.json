@@ -14,7 +14,9 @@
     "noOptions": "Немає варіантів"
   },
   "terminal": {
-    "inputConnected": "введи команду та натисни Enter"
+    "inputConnected": "введи команду та натисни Enter",
+    "emptyTitle": "Немає підключення",
+    "emptyHint": "Обери порт і підключись, щоб оживити термінал."
   },
   "transfer": {
     "dropzone": "Перетягни файл сюди або",

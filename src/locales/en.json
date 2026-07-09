@@ -14,7 +14,9 @@
     "noOptions": "No options"
   },
   "terminal": {
-    "inputConnected": "type and press Enter"
+    "inputConnected": "type and press Enter",
+    "emptyTitle": "No serial link",
+    "emptyHint": "Pick a port and connect to wake up the terminal."
   },
   "transfer": {
     "dropzone": "Drop a file here, or",

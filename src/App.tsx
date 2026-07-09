@@ -216,6 +216,8 @@ function App() {
           connected={connected}
           input={input}
           inputPlaceholder={t("terminal.inputConnected")}
+          emptyTitle={t("terminal.emptyTitle")}
+          emptyHint={t("terminal.emptyHint")}
           hostRef={terminal.hostRef}
           onInputChange={setInput}
           onSendInput={sendInput}
