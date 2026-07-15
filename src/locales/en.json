@@ -10,13 +10,15 @@
     "language": "Language",
     "noPorts": "No ports",
     "connect": "Connect",
+    "reconnect": "Reconnect",
     "disconnect": "Disconnect",
     "noOptions": "No options"
   },
   "terminal": {
-    "inputConnected": "type and press Enter",
     "emptyTitle": "No serial link",
-    "emptyHint": "Pick a port and connect to wake up the terminal."
+    "emptyHint": "Pick a port and connect to wake up the terminal.",
+    "connectionLostTitle": "Connection lost",
+    "connectionLostHint": "{{port}} is no longer available. Reconnect the device, then try again."
   },
   "transfer": {
     "dropzone": "Drop a file here, or",

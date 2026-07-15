@@ -33,25 +33,31 @@ const ART_FRAMES = [
 type TerminalPaneProps = {
   visible: boolean;
   connected: boolean;
-  input: string;
-  inputPlaceholder: string;
+  connectionState: "idle" | "connected" | "disconnected" | "lost";
   emptyTitle: string;
   emptyHint: string;
+  connectionLostTitle: string;
+  connectionLostHint: string;
+  connectionLostReason: string;
+  reconnectLabel: string;
+  canReconnect: boolean;
   hostRef: RefObject<HTMLDivElement | null>;
-  onInputChange: (input: string) => void;
-  onSendInput: () => void;
+  onReconnect: () => void;
 };
 
 export function TerminalPane({
   visible,
   connected,
-  input,
-  inputPlaceholder,
+  connectionState,
   emptyTitle,
   emptyHint,
+  connectionLostTitle,
+  connectionLostHint,
+  connectionLostReason,
+  reconnectLabel,
+  canReconnect,
   hostRef,
-  onInputChange,
-  onSendInput,
+  onReconnect,
 }: TerminalPaneProps) {
   const [frame, setFrame] = useState(0);
 
@@ -65,27 +71,31 @@ export function TerminalPane({
     <div className={`terminal${visible ? "" : " is-hidden"}`}>
       <div className="terminal-stage">
         <div className="terminal-log" ref={hostRef} />
-        {!connected && (
+        {connectionState === "idle" && (
           <div className="terminal-empty" aria-live="polite">
             <pre className="terminal-empty-art" aria-hidden="true">{ART_FRAMES[frame]}</pre>
             <div className="terminal-empty-title">{emptyTitle}</div>
             <div className="terminal-empty-hint">{emptyHint}</div>
           </div>
         )}
+        {connectionState === "lost" && (
+          <section className="terminal-lost" aria-live="assertive" aria-label={connectionLostTitle}>
+            <div className="terminal-lost-signal" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className="terminal-lost-copy">
+              <h2>{connectionLostTitle}</h2>
+              <p>{connectionLostHint}</p>
+              {connectionLostReason && <code>{connectionLostReason}</code>}
+            </div>
+            <button className="terminal-reconnect" type="button" disabled={!canReconnect} onClick={onReconnect}>
+              {reconnectLabel}
+            </button>
+          </section>
+        )}
       </div>
-      {connected && (
-        <div className="send-line">
-          <span className="dim">&gt;</span>
-          <input
-            className="send-input"
-            value={input}
-            onChange={(event) => onInputChange(event.target.value)}
-            onKeyDown={(event) => event.key === "Enter" && onSendInput()}
-            placeholder={inputPlaceholder}
-            spellCheck={false}
-          />
-        </div>
-      )}
     </div>
   );
 }

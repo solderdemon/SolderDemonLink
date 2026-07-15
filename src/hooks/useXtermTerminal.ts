@@ -3,10 +3,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 
-export function useXtermTerminal(active: boolean) {
+export function useXtermTerminal(active: boolean, writable: boolean) {
   const hostRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const writableRef = useRef(writable);
+
+  useEffect(() => {
+    writableRef.current = writable;
+  }, [writable]);
 
   useEffect(() => {
     if (terminalRef.current) return;
@@ -36,6 +41,7 @@ export function useXtermTerminal(active: boolean) {
       terminal.open(hostRef.current);
       fit.fit();
       terminal.onData((data) => {
+        if (!writableRef.current) return;
         invoke("write_port", { data }).catch(() => {});
       });
 
@@ -52,7 +58,10 @@ export function useXtermTerminal(active: boolean) {
   }, []);
 
   useEffect(() => {
-    const refit = () => fitRef.current?.fit();
+    const refit = () => {
+      fitRef.current?.fit();
+      terminalRef.current?.scrollToBottom();
+    };
     window.addEventListener("resize", refit);
     return () => window.removeEventListener("resize", refit);
   }, []);
@@ -61,8 +70,12 @@ export function useXtermTerminal(active: boolean) {
     if (active) requestAnimationFrame(() => fitRef.current?.fit());
   }, [active]);
 
+  useEffect(() => {
+    if (active && writable) requestAnimationFrame(() => terminalRef.current?.focus());
+  }, [active, writable]);
+
   function write(data: string) {
-    terminalRef.current?.write(data);
+    terminalRef.current?.write(data, () => terminalRef.current?.scrollToBottom());
   }
 
   function writeStatus(text: string) {

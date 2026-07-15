@@ -14,6 +14,7 @@ import type { PortInfo, TransferProgress, View } from "./types";
 
 const BAUD_RATES: number[] = [9600, 19200, 38400, 57600, 115200];
 const DEFAULT_BAUD = 38400;
+type ConnectionState = "idle" | "connected" | "disconnected" | "lost";
 
 function App() {
   const { t, i18n } = useTranslation();
@@ -25,12 +26,13 @@ function App() {
     return BAUD_RATES.includes(saved) ? saved : DEFAULT_BAUD;
   });
   const [connected, setConnected] = useState(false);
-  const [input, setInput] = useState("");
+  const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
+  const [lostReason, setLostReason] = useState("");
   const [filePath, setFilePath] = useState<string | null>(null);
   const [transferring, setTransferring] = useState(false);
   const [progress, setProgress] = useState<TransferProgress | null>(null);
   const [transferMessage, setTransferMessage] = useState("");
-  const terminal = useXtermTerminal(view === "session");
+  const terminal = useXtermTerminal(view === "session", connected);
 
   const fileName = filePath ? (filePath.split(/[\\/]/).pop() ?? filePath) : null;
   const progressLabel = progress
@@ -66,27 +68,19 @@ function App() {
       if (connected) {
         await invoke("close_port");
         setConnected(false);
+        setConnectionState("disconnected");
         terminal.writeStatus(t("status.disconnectedFrom", { port: portName }));
         return;
       }
 
       await invoke("open_port", { name: portName, baud });
       setConnected(true);
+      setConnectionState("connected");
+      setLostReason("");
       terminal.writeStatus(t("status.connectedTo", { port: portName, baud }));
       setView("session");
     } catch (error) {
       terminal.writeStatus(t("status.error", { message: String(error) }));
-    }
-  }
-
-  async function sendInput() {
-    if (!input) return;
-
-    try {
-      await invoke("write_port", { data: `${input}\r` });
-      setInput("");
-    } catch (error) {
-      terminal.writeStatus(t("status.writeFailed", { message: String(error) }));
     }
   }
 
@@ -134,6 +128,10 @@ function App() {
     const unlistenData = listen<string>("serial:data", (event) => terminal.write(event.payload));
     const unlistenClosed = listen<string>("serial:closed", (event) => {
       setConnected(false);
+      setConnectionState("lost");
+      setLostReason(event.payload);
+      setTransferring(false);
+      setProgress(null);
       terminal.writeStatus(t("status.connectionLost", { message: event.payload }));
     });
     const unlistenDevices = listen("serial:devices-changed", () => scanPorts());
@@ -214,13 +212,16 @@ function App() {
         <TerminalPane
           visible={view === "session"}
           connected={connected}
-          input={input}
-          inputPlaceholder={t("terminal.inputConnected")}
+          connectionState={connectionState}
           emptyTitle={t("terminal.emptyTitle")}
           emptyHint={t("terminal.emptyHint")}
+          connectionLostTitle={t("terminal.connectionLostTitle")}
+          connectionLostHint={t("terminal.connectionLostHint", { port: portName })}
+          connectionLostReason={lostReason}
+          reconnectLabel={t("controls.reconnect")}
+          canReconnect={Boolean(portName)}
           hostRef={terminal.hostRef}
-          onInputChange={setInput}
-          onSendInput={sendInput}
+          onReconnect={toggleConnect}
         />
 
         {view === "transfer" && (

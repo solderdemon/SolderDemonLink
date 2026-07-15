@@ -97,7 +97,11 @@ fn open_port(
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
                 Err(e) => {
-                    let _ = app.emit("serial:closed", e.to_string());
+                    // A manual close may interrupt a blocked read. It is not a
+                    // connection failure, so do not show the recovery UI for it.
+                    if !stop.load(Ordering::Relaxed) {
+                        let _ = app.emit("serial:closed", e.to_string());
+                    }
                     break;
                 }
             }
