@@ -115,6 +115,58 @@
   line-height: 1.45;
 }
 
+.terminal-tools {
+  position: absolute;
+  z-index: 3;
+  top: 10px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
+}
+
+.terminal-tool {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--muted);
+}
+
+.terminal-tool:hover,
+.terminal-tool:focus-visible {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+  outline: none;
+}
+
+.terminal-search {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+.terminal-search input {
+  width: min(22vw, 190px);
+  min-width: 110px;
+  padding: 0 5px;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+}
+
+.terminal-search input::placeholder {
+  color: var(--muted);
+}
+
 .terminal-lost {
   position: absolute;
   right: 20px;

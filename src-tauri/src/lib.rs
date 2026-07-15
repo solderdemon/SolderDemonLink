@@ -84,6 +84,15 @@ async fn inspect_firmware(path: String) -> Result<FirmwareInfo, String> {
         .map_err(|e| format!("firmware inspection failed: {e}"))?
 }
 
+#[tauri::command]
+async fn save_terminal_log(path: String, content: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        std::fs::write(path, content).map_err(|e| format!("cannot save terminal log: {e}"))
+    })
+    .await
+    .map_err(|e| format!("terminal log save failed: {e}"))?
+}
+
 fn stop_reader(state: &SerialState) {
     if let Some(stop) = state.stop.lock().unwrap().take() {
         stop.store(true, Ordering::Relaxed);
@@ -335,6 +344,7 @@ pub fn run() {
             close_port,
             write_port,
             inspect_firmware,
+            save_terminal_log,
             kermit_send,
             kermit_cancel
         ])

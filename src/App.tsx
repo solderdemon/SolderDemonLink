@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import { useTranslation } from "react-i18next";
 import "@xterm/xterm/css/xterm.css";
 import { AppHeader } from "./components/AppHeader";
@@ -132,6 +132,40 @@ function App() {
     } catch {}
   }
 
+  async function copyTerminal() {
+    const content = terminal.getText();
+    if (!content.trim()) {
+      terminal.writeStatus(t("terminal.noLog"));
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(content);
+      terminal.writeStatus(t("terminal.copied"));
+    } catch (error) {
+      terminal.writeStatus(t("terminal.copyFailed", { message: String(error) }));
+    }
+  }
+
+  async function saveTerminal() {
+    const content = terminal.getText();
+    if (!content.trim()) {
+      terminal.writeStatus(t("terminal.noLog"));
+      return;
+    }
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const path = await save({
+        defaultPath: `solderdemon-terminal-${timestamp}.log`,
+        filters: [{ name: "Terminal log", extensions: ["log", "txt"] }],
+      });
+      if (!path) return;
+      await invoke("save_terminal_log", { path, content });
+      terminal.writeStatus(t("terminal.logSaved", { path }));
+    } catch (error) {
+      terminal.writeStatus(t("terminal.saveFailed", { message: String(error) }));
+    }
+  }
+
   useEffect(() => {
     if (portName) localStorage.setItem("sd.port", portName);
   }, [portName]);
@@ -244,8 +278,24 @@ function App() {
           connectionLostReason={lostReason}
           reconnectLabel={t("controls.reconnect")}
           canReconnect={Boolean(portName)}
+          labels={{
+            clear: t("terminal.clear"),
+            copy: t("terminal.copy"),
+            save: t("terminal.save"),
+            search: t("terminal.search"),
+            searchPlaceholder: t("terminal.searchPlaceholder"),
+            previousMatch: t("terminal.previousMatch"),
+            nextMatch: t("terminal.nextMatch"),
+            closeSearch: t("terminal.closeSearch"),
+          }}
           hostRef={terminal.hostRef}
           onReconnect={toggleConnect}
+          onClear={terminal.clear}
+          onCopy={() => void copyTerminal()}
+          onSave={() => void saveTerminal()}
+          onSearchNext={terminal.findNext}
+          onSearchPrevious={terminal.findPrevious}
+          onSearchClose={terminal.clearSearch}
         />
 
         {view === "transfer" && (

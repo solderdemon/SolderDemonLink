@@ -2,11 +2,22 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { SearchAddon } from "@xterm/addon-search";
+
+const searchOptions = {
+  decorations: {
+    activeMatchBackground: "#ff7a00",
+    activeMatchColorOverviewRuler: "#ff7a00",
+    matchBackground: "#6c3b00",
+    matchOverviewRuler: "#a85500",
+  },
+};
 
 export function useXtermTerminal(active: boolean, writable: boolean) {
   const hostRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
+  const searchRef = useRef<SearchAddon | null>(null);
   const writableRef = useRef(writable);
 
   useEffect(() => {
@@ -37,7 +48,9 @@ export function useXtermTerminal(active: boolean, writable: boolean) {
       });
 
       const fit = new FitAddon();
+      const search = new SearchAddon();
       terminal.loadAddon(fit);
+      terminal.loadAddon(search);
       terminal.open(hostRef.current);
       fit.fit();
       terminal.onData((data) => {
@@ -47,6 +60,7 @@ export function useXtermTerminal(active: boolean, writable: boolean) {
 
       terminalRef.current = terminal;
       fitRef.current = fit;
+      searchRef.current = search;
     });
 
     return () => {
@@ -54,6 +68,7 @@ export function useXtermTerminal(active: boolean, writable: boolean) {
       terminal?.dispose();
       terminalRef.current = null;
       fitRef.current = null;
+      searchRef.current = null;
     };
   }, []);
 
@@ -82,5 +97,39 @@ export function useXtermTerminal(active: boolean, writable: boolean) {
     write(`\r\n\x1b[2m[${text}]\x1b[0m\r\n`);
   }
 
-  return { hostRef, write, writeStatus };
+  function clear() {
+    terminalRef.current?.clear();
+  }
+
+  function getText() {
+    const terminal = terminalRef.current;
+    if (!terminal) return "";
+    terminal.selectAll();
+    const text = terminal.getSelection();
+    terminal.clearSelection();
+    return text;
+  }
+
+  function findNext(query: string) {
+    return query ? (searchRef.current?.findNext(query, searchOptions) ?? false) : false;
+  }
+
+  function findPrevious(query: string) {
+    return query ? (searchRef.current?.findPrevious(query, searchOptions) ?? false) : false;
+  }
+
+  function clearSearch() {
+    searchRef.current?.clearDecorations();
+  }
+
+  return {
+    hostRef,
+    write,
+    writeStatus,
+    clear,
+    getText,
+    findNext,
+    findPrevious,
+    clearSearch,
+  };
 }
