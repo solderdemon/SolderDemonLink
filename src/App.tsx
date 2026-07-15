@@ -10,7 +10,7 @@ import { SettingsPane } from "./components/SettingsPane";
 import { TerminalPane } from "./components/TerminalPane";
 import { TransferPane } from "./components/TransferPane";
 import { useXtermTerminal } from "./hooks/useXtermTerminal";
-import type { PortInfo, TransferProgress, View } from "./types";
+import type { FirmwareInfo, PortInfo, TransferProgress, View } from "./types";
 
 const BAUD_RATES: number[] = [9600, 19200, 38400, 57600, 115200];
 const DEFAULT_BAUD = 38400;
@@ -29,6 +29,8 @@ function App() {
   const [connectionState, setConnectionState] = useState<ConnectionState>("idle");
   const [lostReason, setLostReason] = useState("");
   const [filePath, setFilePath] = useState<string | null>(null);
+  const [firmwareInfo, setFirmwareInfo] = useState<FirmwareInfo | null>(null);
+  const [inspectingFirmware, setInspectingFirmware] = useState(false);
   const [transferring, setTransferring] = useState(false);
   const [progress, setProgress] = useState<TransferProgress | null>(null);
   const [transferMessage, setTransferMessage] = useState("");
@@ -39,14 +41,29 @@ function App() {
     ? t("transfer.progress", { sent: progress.sent, total: progress.total })
     : null;
 
-  function acceptFile(path: string) {
+  async function acceptFile(path: string) {
     if (!path.toLowerCase().endsWith(".bin")) {
       setFilePath(null);
+      setFirmwareInfo(null);
+      setInspectingFirmware(false);
       setTransferMessage(t("transfer.onlyBin"));
       return;
     }
+
     setFilePath(path);
+    setFirmwareInfo(null);
+    setInspectingFirmware(true);
     setTransferMessage("");
+
+    try {
+      const info = await invoke<FirmwareInfo>("inspect_firmware", { path });
+      setFirmwareInfo(info);
+    } catch (error) {
+      setFilePath(null);
+      setTransferMessage(t("transfer.inspectionFailed", { message: String(error) }));
+    } finally {
+      setInspectingFirmware(false);
+    }
   }
 
   async function scanPorts(manual = false) {
@@ -91,11 +108,11 @@ function App() {
       filters: [{ name: "Firmware", extensions: ["bin"] }],
     });
 
-    if (typeof selected === "string") acceptFile(selected);
+    if (typeof selected === "string") await acceptFile(selected);
   }
 
   async function startSend() {
-    if (!filePath) return;
+    if (!filePath || !firmwareInfo) return;
 
     setTransferMessage("");
     setTransferring(true);
@@ -109,6 +126,7 @@ function App() {
   }
 
   async function cancelSend() {
+    setTransferMessage(t("transfer.cancelling"));
     try {
       await invoke("kermit_cancel");
     } catch {}
@@ -148,6 +166,11 @@ function App() {
       setProgress(null);
       setTransferMessage(t("transfer.done", { name: event.payload }));
     });
+    const unlistenKCancelled = listen("kermit:cancelled", () => {
+      setTransferring(false);
+      setProgress(null);
+      setTransferMessage(t("transfer.cancelled"));
+    });
     const unlistenKError = listen<string>("kermit:error", (event) => {
       setTransferring(false);
       setProgress(null);
@@ -161,6 +184,7 @@ function App() {
       unlistenKStart.then((unlisten) => unlisten());
       unlistenKProgress.then((unlisten) => unlisten());
       unlistenKDone.then((unlisten) => unlisten());
+      unlistenKCancelled.then((unlisten) => unlisten());
       unlistenKError.then((unlisten) => unlisten());
     };
   }, [t]);
@@ -168,7 +192,7 @@ function App() {
   useEffect(() => {
     const unlisten = getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type !== "drop" || event.payload.paths.length === 0) return;
-      acceptFile(event.payload.paths[0]);
+      void acceptFile(event.payload.paths[0]);
       setView("transfer");
     });
 
@@ -228,6 +252,8 @@ function App() {
           <TransferPane
             connected={connected}
             fileName={fileName}
+            firmwareInfo={firmwareInfo}
+            inspectingFirmware={inspectingFirmware}
             transferring={transferring}
             progress={progress}
             transferMessage={transferMessage}
@@ -235,13 +261,21 @@ function App() {
               dropzone: t("transfer.dropzone"),
               browse: t("transfer.browse"),
               noFile: t("transfer.noFile"),
+              inspecting: t("transfer.inspecting"),
+              size: t("transfer.size"),
+              sha256: t("transfer.sha256"),
+              crc32: t("transfer.crc32"),
               cancel: t("transfer.cancel"),
               connectFirst: t("transfer.connectFirst"),
               send: t("transfer.send"),
             }}
             progressLabel={progressLabel}
             onChooseFile={chooseFile}
-            onClearFile={() => setFilePath(null)}
+            onClearFile={() => {
+              setFilePath(null);
+              setFirmwareInfo(null);
+              setTransferMessage("");
+            }}
             onStartSend={startSend}
             onCancelSend={cancelSend}
           />

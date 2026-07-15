@@ -52,3 +52,42 @@
   display: flex;
   gap: 8px;
 }
+
+.transfer-inspecting {
+  margin: 0;
+}
+
+.firmware-details {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.firmware-details div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  padding: 8px 12px;
+}
+
+.firmware-details div + div {
+  border-top: 1px solid var(--line);
+}
+
+.firmware-details dt {
+  color: var(--muted);
+}
+
+.firmware-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.firmware-details code {
+  font: inherit;
+  color: var(--text);
+}

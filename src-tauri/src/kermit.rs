@@ -3,8 +3,8 @@
 //! Implements the original short-packet protocol: Send-Init parameter
 //! negotiation, control-prefix and 8th-bit quoting, type-1 / type-2 block
 //! checks, and a stop-and-wait state machine (S -> F -> D... -> Z -> B) with
-//! per-packet retransmission. Repeat-count compression, sliding windows, long
-//! packets and CRC (type-3) checks are intentionally not offered.
+//! per-packet retransmission. Repeat-count compression, sliding windows, and
+//! long packets are intentionally not offered.
 
 use std::fs;
 use std::io::ErrorKind;
@@ -71,6 +71,18 @@ fn check_len(chkt: u8) -> usize {
     }
 }
 
+/// Kermit's type-3 CRC-16-CCITT block check, calculated low bit first.
+fn crc16_kermit(bytes: impl IntoIterator<Item = u8>) -> u16 {
+    let mut crc = 0u16;
+    for c in bytes {
+        let q = (crc ^ c as u16) & 0x0F;
+        crc = (crc >> 4) ^ q.wrapping_mul(0x1081);
+        let q = (crc ^ (c as u16 >> 4)) & 0x0F;
+        crc = (crc >> 4) ^ q.wrapping_mul(0x1081);
+    }
+    crc
+}
+
 /// Build a complete packet (optional leading pad, SOH, len, seq, type, data,
 /// block check, EOL). The block check covers the len, seq, type and data bytes.
 fn build_packet(seq: u8, ptype: u8, data: &[u8], p: &Params) -> Vec<u8> {
@@ -98,6 +110,16 @@ fn build_packet(seq: u8, ptype: u8, data: &[u8], p: &Params) -> Vec<u8> {
             let s = sum & 0x0FFF;
             pkt.push(tochar(((s >> 6) & 0x3F) as u8));
             pkt.push(tochar((s & 0x3F) as u8));
+        }
+        b'3' => {
+            let crc = crc16_kermit(
+                [len_char, seq_char, ptype]
+                    .into_iter()
+                    .chain(data.iter().copied()),
+            );
+            pkt.push(tochar(((crc >> 12) & 0x0F) as u8));
+            pkt.push(tochar(((crc >> 6) & 0x3F) as u8));
+            pkt.push(tochar((crc & 0x3F) as u8));
         }
         _ => {
             let s = sum & 0xFF;
@@ -142,9 +164,16 @@ fn encode_byte(out: &mut Vec<u8>, byte: u8, p: &Params) {
     }
 }
 
-fn read_byte(port: &mut dyn SerialPort, deadline: Instant) -> Result<u8, String> {
+fn read_byte(
+    port: &mut dyn SerialPort,
+    deadline: Instant,
+    cancel: &AtomicBool,
+) -> Result<u8, String> {
     let mut b = [0u8; 1];
     loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Err("transfer cancelled".into());
+        }
         if Instant::now() >= deadline {
             return Err("timed out waiting for response".into());
         }
@@ -158,14 +187,19 @@ fn read_byte(port: &mut dyn SerialPort, deadline: Instant) -> Result<u8, String>
 }
 
 /// Read and verify one inbound packet, using `chkt` to know the check length.
-fn read_packet(port: &mut dyn SerialPort, chkt: u8, deadline: Instant) -> Result<RxPacket, String> {
+fn read_packet(
+    port: &mut dyn SerialPort,
+    chkt: u8,
+    deadline: Instant,
+    cancel: &AtomicBool,
+) -> Result<RxPacket, String> {
     loop {
-        if read_byte(port, deadline)? == SOH {
+        if read_byte(port, deadline, cancel)? == SOH {
             break;
         }
     }
 
-    let len_char = read_byte(port, deadline)?;
+    let len_char = read_byte(port, deadline, cancel)?;
     let count = unchar(len_char) as usize; // seq + type + data + check
     let clen = check_len(chkt);
     if count < 2 + clen {
@@ -174,7 +208,7 @@ fn read_packet(port: &mut dyn SerialPort, chkt: u8, deadline: Instant) -> Result
 
     let mut rest = Vec::with_capacity(count);
     while rest.len() < count {
-        rest.push(read_byte(port, deadline)?);
+        rest.push(read_byte(port, deadline, cancel)?);
     }
 
     let body = &rest[..rest.len() - clen]; // seq, type, data
@@ -190,6 +224,13 @@ fn read_packet(port: &mut dyn SerialPort, chkt: u8, deadline: Instant) -> Result
             recv_check.len() == 2
                 && recv_check[0] == tochar(((s >> 6) & 0x3F) as u8)
                 && recv_check[1] == tochar((s & 0x3F) as u8)
+        }
+        b'3' => {
+            let crc = crc16_kermit(std::iter::once(len_char).chain(body.iter().copied()));
+            recv_check.len() == 3
+                && recv_check[0] == tochar(((crc >> 12) & 0x0F) as u8)
+                && recv_check[1] == tochar(((crc >> 6) & 0x3F) as u8)
+                && recv_check[2] == tochar((crc & 0x3F) as u8)
         }
         _ => {
             let s = sum & 0xFF;
@@ -225,8 +266,7 @@ fn parse_params(d: &[u8]) -> Result<Params, String> {
         _ => None,
     };
     let chkt = match get(7) {
-        Some(b @ (b'1' | b'2')) => b,
-        Some(b'3') => return Err("receiver requires CRC (type 3) checks, not supported".into()),
+        Some(b @ (b'1' | b'2' | b'3')) => b,
         _ => b'1',
     };
 
@@ -248,15 +288,19 @@ fn send_and_ack(
     ptype: u8,
     data: &[u8],
     p: &Params,
+    cancel: &AtomicBool,
 ) -> Result<(), String> {
     let pkt = build_packet(seq, ptype, data, p);
     let mut last_err = String::from("no response");
 
     for _ in 0..MAX_RETRIES {
+        if cancel.load(Ordering::Relaxed) {
+            return Err("transfer cancelled".into());
+        }
         port.write_all(&pkt).map_err(|e| e.to_string())?;
         port.flush().map_err(|e| e.to_string())?;
 
-        match read_packet(port, p.chkt, Instant::now() + PACKET_TIMEOUT) {
+        match read_packet(port, p.chkt, Instant::now() + PACKET_TIMEOUT, cancel) {
             Ok(rx) => match rx.ptype {
                 b'Y' if rx.seq == seq % 64 => return Ok(()),
                 b'E' => {
@@ -276,18 +320,18 @@ fn send_and_ack(
 }
 
 /// The Send-Init exchange: propose our parameters, read the receiver's reply.
-fn exchange_init(port: &mut dyn SerialPort) -> Result<Params, String> {
+fn exchange_init(port: &mut dyn SerialPort, cancel: &AtomicBool) -> Result<Params, String> {
     // MAXL, TIME, NPAD, PADC, EOL, QCTL, QBIN, CHKT, REPT
     let s_data = [
-        tochar(80),  // we can receive up to 80
-        tochar(5),   // suggested timeout
-        tochar(0),   // no padding
-        ctl(0),      // pad char NUL
+        tochar(80), // we can receive up to 80
+        tochar(5),  // suggested timeout
+        tochar(0),  // no padding
+        ctl(0),     // pad char NUL
         tochar(b'\r'),
-        b'#',        // control prefix
-        b'Y',        // willing to 8th-bit quote if asked
-        b'1',        // type-1 block check
-        b' ',        // no repeat compression
+        b'#', // control prefix
+        b'Y', // willing to 8th-bit quote if asked
+        b'1', // type-1 block check
+        b' ', // no repeat compression
     ];
 
     // The Send-Init exchange itself always uses type-1 checks and CR EOL.
@@ -304,10 +348,13 @@ fn exchange_init(port: &mut dyn SerialPort) -> Result<Params, String> {
 
     let mut last_err = String::from("receiver did not answer Send-Init");
     for _ in 0..MAX_RETRIES {
+        if cancel.load(Ordering::Relaxed) {
+            return Err("transfer cancelled".into());
+        }
         port.write_all(&pkt).map_err(|e| e.to_string())?;
         port.flush().map_err(|e| e.to_string())?;
 
-        match read_packet(port, b'1', Instant::now() + PACKET_TIMEOUT) {
+        match read_packet(port, b'1', Instant::now() + PACKET_TIMEOUT, cancel) {
             Ok(rx) if rx.ptype == b'Y' => return parse_params(&rx.data),
             Ok(rx) if rx.ptype == b'E' => {
                 return Err(format!(
@@ -337,7 +384,7 @@ pub fn send_file(
 
     let _ = port.clear(ClearBuffer::Input);
 
-    let params = exchange_init(port)?;
+    let params = exchange_init(port, cancel)?;
 
     let total = bytes.len();
     let _ = app.emit(
@@ -354,7 +401,7 @@ pub fn send_file(
     for &b in name.as_bytes() {
         encode_byte(&mut fdata, b, &params);
     }
-    send_and_ack(port, 1, b'F', &fdata, &params)?;
+    send_and_ack(port, 1, b'F', &fdata, &params, cancel)?;
 
     // Data packets (D), starting at sequence 2.
     let budget = params
@@ -365,7 +412,6 @@ pub fn send_file(
     let mut idx = 0usize;
     while idx < bytes.len() {
         if cancel.load(Ordering::Relaxed) {
-            let _ = send_and_ack(port, seq, b'E', b"cancelled by user", &params);
             return Err("transfer cancelled".into());
         }
 
@@ -374,7 +420,7 @@ pub fn send_file(
             encode_byte(&mut chunk, bytes[idx], &params);
             idx += 1;
         }
-        send_and_ack(port, seq, b'D', &chunk, &params)?;
+        send_and_ack(port, seq, b'D', &chunk, &params, cancel)?;
 
         let _ = app.emit(
             "kermit:progress",
@@ -388,9 +434,9 @@ pub fn send_file(
     }
 
     // End of file (Z) then break / end of transmission (B).
-    send_and_ack(port, seq, b'Z', &[], &params)?;
+    send_and_ack(port, seq, b'Z', &[], &params, cancel)?;
     seq = (seq + 1) % 64;
-    send_and_ack(port, seq, b'B', &[], &params)?;
+    send_and_ack(port, seq, b'B', &[], &params, cancel)?;
 
     Ok(name)
 }
@@ -418,6 +464,13 @@ mod tests {
         }
         assert_eq!(ctl(0), 0x40);
         assert_eq!(ctl(ctl(13)), 13);
+    }
+
+    #[test]
+    fn crc_type_3_matches_kermit_reference_value() {
+        // The Kermit CRC-16-CCITT parameters are: width 16, init 0, refin/refout
+        // true, xorout 0. This standard check vector yields 0x2189.
+        assert_eq!(crc16_kermit(b"123456789".iter().copied()), 0x2189);
     }
 
     #[test]

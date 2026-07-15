@@ -1,11 +1,14 @@
 mod kermit;
 
+use std::fs::File;
 use std::io::{Read, Write};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde::Serialize;
+use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, State};
 
 #[derive(Default)]
@@ -22,6 +25,63 @@ struct SerialState {
 struct PortInfo {
     name: String,
     kind: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct FirmwareInfo {
+    name: String,
+    size: u64,
+    sha256: String,
+    crc32: String,
+}
+
+fn inspect_firmware_file(path: &str) -> Result<FirmwareInfo, String> {
+    let path = Path::new(path);
+    if !path.is_file() {
+        return Err("firmware file does not exist".into());
+    }
+    if !path
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("bin"))
+    {
+        return Err("only .bin firmware files are supported".into());
+    }
+
+    let mut file = File::open(path).map_err(|e| format!("cannot read file: {e}"))?;
+    let mut sha256 = Sha256::new();
+    let mut crc32 = crc32fast::Hasher::new();
+    let mut size = 0u64;
+    let mut buffer = [0u8; 64 * 1024];
+
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|e| format!("cannot read file: {e}"))?;
+        if read == 0 {
+            break;
+        }
+        sha256.update(&buffer[..read]);
+        crc32.update(&buffer[..read]);
+        size += read as u64;
+    }
+
+    Ok(FirmwareInfo {
+        name: path
+            .file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "firmware.bin".into()),
+        size,
+        sha256: format!("{:x}", sha256.finalize()),
+        crc32: format!("{:08X}", crc32.finalize()),
+    })
+}
+
+#[tauri::command]
+async fn inspect_firmware(path: String) -> Result<FirmwareInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || inspect_firmware_file(&path))
+        .await
+        .map_err(|e| format!("firmware inspection failed: {e}"))?
 }
 
 fn stop_reader(state: &SerialState) {
@@ -156,6 +216,9 @@ fn kermit_send(app: AppHandle, state: State<SerialState>, path: String) -> Resul
             Ok(name) => {
                 let _ = app.emit("kermit:done", name);
             }
+            Err(message) if message == "transfer cancelled" => {
+                let _ = app.emit("kermit:cancelled", ());
+            }
             Err(message) => {
                 let _ = app.emit("kermit:error", message);
             }
@@ -271,6 +334,7 @@ pub fn run() {
             open_port,
             close_port,
             write_port,
+            inspect_firmware,
             kermit_send,
             kermit_cancel
         ])

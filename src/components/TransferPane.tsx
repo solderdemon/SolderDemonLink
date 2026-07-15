@@ -1,9 +1,11 @@
 import { Upload, X } from "lucide-react";
-import type { TransferProgress } from "../types";
+import type { FirmwareInfo, TransferProgress } from "../types";
 
 type TransferPaneProps = {
   connected: boolean;
   fileName: string | null;
+  firmwareInfo: FirmwareInfo | null;
+  inspectingFirmware: boolean;
   transferring: boolean;
   progress: TransferProgress | null;
   transferMessage: string;
@@ -11,6 +13,10 @@ type TransferPaneProps = {
     dropzone: string;
     browse: string;
     noFile: string;
+    inspecting: string;
+    size: string;
+    sha256: string;
+    crc32: string;
     cancel: string;
     connectFirst: string;
     send: string;
@@ -25,6 +31,8 @@ type TransferPaneProps = {
 export function TransferPane({
   connected,
   fileName,
+  firmwareInfo,
+  inspectingFirmware,
   transferring,
   progress,
   transferMessage,
@@ -56,6 +64,25 @@ export function TransferPane({
         )}
       </div>
 
+      {inspectingFirmware && <p className="dim transfer-inspecting">{labels.inspecting}</p>}
+
+      {firmwareInfo && (
+        <dl className="firmware-details" aria-label={firmwareInfo.name}>
+          <div>
+            <dt>{labels.size}</dt>
+            <dd>{firmwareInfo.size.toLocaleString()} B</dd>
+          </div>
+          <div>
+            <dt>{labels.sha256}</dt>
+            <dd><code>{firmwareInfo.sha256}</code></dd>
+          </div>
+          <div>
+            <dt>{labels.crc32}</dt>
+            <dd><code>{firmwareInfo.crc32}</code></dd>
+          </div>
+        </dl>
+      )}
+
       {progress && progressLabel && (
         <div className="progress">
           <div className="progress-bar">
@@ -77,7 +104,12 @@ export function TransferPane({
             {labels.cancel}
           </button>
         ) : (
-          <button className="connect" type="button" disabled={!connected || !fileName} onClick={onStartSend}>
+          <button
+            className="connect"
+            type="button"
+            disabled={!connected || !fileName || !firmwareInfo || inspectingFirmware}
+            onClick={onStartSend}
+          >
             {labels.send}
           </button>
         )}
